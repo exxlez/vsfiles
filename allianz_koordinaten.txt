@@ -1,0 +1,100 @@
+Allianz Hive Plan - Koordinaten & Basen
+=======================================
+
+[STRONGHOLD] Stronghold Lv5
+[GUARD] Wache
+[R4] owlsome |  757|800
+[R4] exxlez |  753|804
+[R4] bart |  761|804
+[R4] ray |  761|800
+[R3] marion |  761|796
+[R3] dd 7777 |  757|796
+[R3] glitzer |  765|800
+[R3] Piero |  765|796
+[R4] don |  757|808
+[R4] aldronn |  753|800
+[R4] Kaiser Ösi |  753|808
+[R4] Liebe Tante |  761|808
+[R4] hengzte |  749|804
+[R4] Eusi chef |  765|804
+[R3] the bara |  781|800
+[R3] douglas |  781|796
+[R3] knappenhaus |  781|804
+[R3] roxxer |  773|792
+[R3] do any |  777|792
+[R3] lobos |  773|808
+[R3] PRTOC |  777|808
+[R3] andymorandy |  769|792
+[R3] command conq |  781|792
+[R3] flyingdavi |  785|800
+[R3] w4ff3l |  769|808
+[R3] JenJen |  781|808
+[R3] angelax |  785|796
+[R3] del denjel |  785|804
+[R3] nico2193 |  773|788
+[R3] adir |  777|788
+[R3] zoe x |  773|812
+[R3] dup3 |  777|812
+[R3] ktalas |  765|792
+[R3] steintor |  785|792
+[R3] kleiner rabauke |  765|808
+[R3] steiner |  785|808
+[R3] biscoff |  769|788
+[R3] sara soy |  781|788
+[R3] gewinnertim |  769|812
+[R3] wayne |  781|812
+[R3] babe9712 |  789|800
+[R3] itachi |  789|796
+[R3] themo |  789|804
+[R3] marziee |  765|788
+[R3] rodomonte |  785|788
+[R3] christoph |  765|812
+[R3] shadow |  785|812
+[R3] sbabadem |  773|784
+[R3] gabixyz |  777|784
+[R3] eisi |  761|792
+[R3] Mqqney |  789|792
+[R3] odrees |  789|808
+[R3] randomname |  773|816
+[R3] torto |  777|816
+[R3] toutou |  769|784
+[R3] joe s |  781|784
+[R3] mattenfred |  769|816
+[R3] d1se |  781|816
+[R3] Hörnchen |  793|800
+[R3] gemini of saga |  761|788
+[R3] deutscher jager |  789|788
+[R3] icke |  793|796
+[R3] mxl |  793|804
+[R3] CKAN 1992 |  761|812
+[R3] blabla |  789|812
+[R3] futureregman |  765|784
+[R3] the tideline |  785|784
+[R3] lord lampe |  765|816
+[R3] rockefeller |  785|816
+[R3] earendil |  757|792
+[R3] dlp10 |  793|792
+[R3] dori balliu |  793|808
+[R3] m4dm4xx |  773|780
+[R3] LTMAD |  777|780
+[R3] bagatellej |  773|820
+[R3] qelic |  777|820
+[R3] brepabo |  769|780
+[R3] starkiller1 |  781|780
+[R3] pc frank |  769|820
+[R3] sinnertsaints |  781|820
+[R3] cain |  761|784
+[R3] corcouspin |  789|784
+[R3] Lucifero78 |  761|816
+[R3] napa3utt |  789|816
+[R3] the big 2 |  757|788
+[R3] heimdall |  793|788
+[R3] kardashov66 |  757|812
+[R3] robmod |  793|812
+[R3] Samuakari |  797|800
+[R3] peter |  765|780
+[R3] eusi x |  785|780
+[R3] devil 0505 |  753|796
+[R3] Com. Mosconi |  797|796
+[R3] Ruppfuchs |  797|804
+[R3] clever mike |  765|820
