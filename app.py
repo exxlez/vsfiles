@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import json
+import io
+import zipfile
 
 # --- STREAMLIT UI SETUP ---
 st.set_page_config(page_title="Last War Hive Generator", layout="wide")
@@ -12,6 +14,14 @@ st.write("Adjust the parameters, upload your alliance JSON and generate the hive
 # Standardwerte für In-Game-Richtungen
 Y_VON_UNTEN_NACH_OBEN = True   
 X_VON_LINKS_NACH_RECHTS = True  
+
+# Initialisiere Session State für die Downloads, damit sie nicht verschwinden
+if "img_buf" not in st.session_state:
+    st.session_state.img_buf = None
+if "txt_content" not in st.session_state:
+    st.session_state.txt_content = None
+if "zip_buffer" not in st.session_state:
+    st.session_state.zip_buffer = None
 
 # Ein Formular für alle Eingabeparameter
 with st.form("param_form"):
@@ -33,24 +43,20 @@ with st.form("param_form"):
         guard_size = st.number_input("Guard Size (Fields)", value=3)
 
     st.subheader("🏰 Stronghold-Options, will be the Center if Active!")
-    # Abfrage, ob ein Stronghold vorhanden ist
-    stronghold_vorhanden = st.checkbox("Stronghold near Hive?", value=True, 
-                                       help="If deactivated, the Stronghold will be completely ignored!")
+    stronghold_vorhanden = st.checkbox("Stronghold near Hive?", value=True)
     
     col_s1, col_s2, col_s3, col_s4 = st.columns(4)
     with col_s1:
-        stronghold_x = st.number_input("Stronghold X-Coordinate. BE AWARE! Take Always the lower left corner", value=774)
+        stronghold_x = st.number_input("Stronghold X-Coordinate.", value=774)
     with col_s2:
-        stronghold_y = st.number_input("Stronghold Y-Coordinate. BE AWARE! Take Always the lower left corner", value=799)
+        stronghold_y = st.number_input("Stronghold Y-Coordinate.", value=799)
     with col_s3:
         stronghold_size = st.number_input("Stronghold/City Size (Fields)", value=13)
     with col_s4:
-        # HIER WIRD DER VARIABLE NAME ABGEFRAGT
         stronghold_name = st.text_input("Name of City or Stronghold", value="Stronghold Lv5")
     
     st.subheader("⚠️ Zone Monitoring (Minimum Distance)")
-    min_hive_distance = st.number_input("Minimum distance Stronghold to Hive-Center (Radius)", value=15,
-                                        help="Checks if the stronghold was built too close to the hive/guard.")
+    min_hive_distance = st.number_input("Minimum distance Stronghold to Hive-Center (Radius)", value=15)
 
     st.subheader("⚙️ General Settings")
     col_a1, col_a2, col_a3 = st.columns(3)
@@ -62,31 +68,10 @@ with st.form("param_form"):
         padding = st.number_input("Padding", value=60)
 
     st.subheader("📂 Alliance Data")
-    
-    # HIER IST DIE GEWÜNSCHTE ERKLÄRUNG FÜR DIE JSON-DATEI
-    with st.expander("📋 This is how your Json should look like, You can set up Partner, who want to stand near their partner!"):
-        st.markdown("""
-        "Your JSON file must be a list of players. Simply copy the following structure:
-        """)
-        beispiel_json_text = """[
-  {"name": "player 1", "rang": "r4", "power": 100000000, "partner": "null"},
-  {"name": "player 2", "rang": "r4", "power": 100000000, "partner": "null"},
-  {"name": "player 3", "rang": "r4", "power": 100000000, "partner": "player 3"},
-  {"name": "player 4", "rang": "r3", "power": 77700000, "partner": "player 4"}
-]"""
-        st.code(beispiel_json_text, language="json")
-        st.markdown("""
-        **Rules for the fields::**
-        * `name`: The player's in-game name.
-        * `rang`: `"r4"` are preferentially placed at the guard .
-        * `power`: The combat power as a number (determines the order within the rank).
-        * `partner`: "Name of the desired partner for a chain... If no partner is desired, enter exactly `"null"`.
-        """)
-
     uploaded_file = st.file_uploader("Upload your allianz.json", type=["json"])
     submit_button = st.form_submit_button("Generate Hive-Plan")
 
-# --- PRÜFUNG: ABSTAND ZUM HIVE-CENTER ("Stronghold near hive") ---
+# --- PRÜFUNG: ABSTAND ZUM HIVE-CENTER ---
 def check_stronghold_near_hive(sx, sy, ss, gx, gy, gs, min_dist):
     sh_center_x = sx + (ss / 2)
     sh_center_y = sy + (ss / 2)
@@ -100,7 +85,6 @@ if submit_button:
     if not uploaded_file:
         st.error("❌ Upload a valid allianz.json!")
     else:
-        # Falls Stronghold vorhanden ist, prüfen wir den Abstand
         is_too_near = False
         if stronghold_vorhanden:
             actual_dist, is_too_near = check_stronghold_near_hive(
@@ -109,17 +93,13 @@ if submit_button:
             )
         
         if stronghold_vorhanden and is_too_near:
-            st.error(f"⚠️ **ERROR: Stronghold near hive!** "
-                     f"Der actual Distance are **{actual_dist:.1f} Fields**. "
-                     f"You need atleast **{min_hive_distance} Fields distance**! "
-                     f"Replace your Guard or Stronghold Coordinates!.")
+            st.error(f"⚠️ **ERROR: Stronghold near hive!** Pls replace your Guard or Stronghold Coordinates!")
         else:
             st.success("✅ Parameter check successful! Generating data...")
             
             try:
                 raw_members = json.load(uploaded_file)
                 
-                # Wenn kein Stronghold da ist, nutzen wir nur die Wache für die Ränder
                 if stronghold_vorhanden:
                     min_game_x = min(stronghold_x, guard_x) - padding
                     max_game_x = max(stronghold_x + stronghold_size, guard_x + guard_size) + padding
@@ -144,7 +124,6 @@ if submit_button:
                 guard_blocked_x = set(range(int(guard_x), int(guard_x + guard_size)))
                 guard_blocked_y = set(range(int(guard_y), int(guard_y + guard_size)))
                 
-                # Stronghold Blockierung nur berechnen, wenn vorhanden
                 if stronghold_vorhanden:
                     sh_game_start_x = stronghold_x - 6
                     sh_game_start_y = stronghold_y - 6
@@ -170,7 +149,6 @@ if submit_button:
                     sh_x, sh_y = to_grid_x(stronghold_x) - 6, to_grid_y(stronghold_y) - 6
 
                 step = int(base_size + spacing)
-                # Wenn kein Stronghold da ist, orientieren sich die R3 Slots an der Wache
                 hive_center_game_x = stronghold_x if stronghold_vorhanden else guard_x
                 hive_center_game_y = stronghold_y if stronghold_vorhanden else guard_y
                 
@@ -330,7 +308,6 @@ if submit_button:
                                         break
 
                 placed_objects = []
-                # HIER WIRD NUN DIE VARIABLE "stronghold_name" VERWENDET
                 if stronghold_vorhanden:
                     placed_objects.append({"name": stronghold_name, "x": sh_x, "y": sh_y, "w": stronghold_size, "h": stronghold_size, "type": "stronghold"})
                 
@@ -340,19 +317,26 @@ if submit_button:
                     mx, my = p["x"], p["y"]
                     m = p["member"]
                     real_x, real_y = to_game_coords(mx, my)
+                    center_x = real_x + 1
+                    center_y = real_y + 1
+                    
                     placed_objects.append({
-                        "name": f"{m['name']}\n{real_x+1}|{real_y+1}", 
+                        "name": f"{m['name']}\n{center_x}|{center_y}", 
                         "x": mx, "y": my, "w": base_size, "h": base_size, 
-                        "type": m["rang"].lower()
+                        "type": m["rang"].lower(),
+                        "real_center_x": center_x,
+                        "real_center_y": center_y
                     })
 
-                # --- PLOT ERSTELLEN ---
+                colors = {"stronghold": "#b22222", "guard": "#ff8c00", "r4": "#1e90ff", "r3": "#2e8b57"}
+
+                # --- 1. OVERVIEW MAP GENERIEREN ---
                 all_x = [obj["x"] for obj in placed_objects] + [obj["x"]+obj["w"] for obj in placed_objects]
                 all_y = [obj["y"] for obj in placed_objects] + [obj["y"]+obj["h"] for obj in placed_objects]
                 view_min_x, view_max_x = max(0, min(all_x) - 4), min(grid_w, max(all_x) + 4)
                 view_min_y, view_max_y = max(0, min(all_y) - 4), min(grid_h, max(all_y) + 4)
 
-                fig, ax = plt.subplots(figsize=(15, 15), dpi=150)
+                fig, ax = plt.subplots(figsize=(15, 15), dpi=140)
                 ax.set_aspect('equal')
                 ax.set_facecolor('#1e251c') 
                 ax.set_xlim(view_min_x, view_max_x)
@@ -367,38 +351,144 @@ if submit_button:
                 
                 ax.grid(True, which='major', color='#2d382a', linestyle='-', linewidth=0.8)
                 
-                colors = {"stronghold": "#b22222", "guard": "#ff8c00", "r4": "#1e90ff", "r3": "#2e8b57"}
                 for obj in placed_objects:
                     rect = patches.Rectangle((obj["x"], obj["y"]), obj["w"], obj["h"], linewidth=1.2, edgecolor='#ffffff', facecolor=colors.get(obj["type"], "#4682b4"), alpha=0.9)
                     ax.add_patch(rect)
                     font_sz = 8 if obj["type"] in ["r4", "r3"] else 14
-                    
-                    # Wraptext / Zeilenumbruch-Support, falls jemand einen langen Namen eingibt
                     ax.text(obj["x"] + obj["w"]/2, obj["y"] + obj["h"]/2, obj["name"], color="white", fontsize=font_sz, fontweight='bold', ha='center', va='center', clip_on=True, wrap=True)
 
                 plt.title("Allianz Hive Plan", fontsize=18, color='white', pad=20, weight='bold')
                 fig.patch.set_facecolor('#121711')
                 
+                # Plot anzeigen
                 st.pyplot(fig)
                 
-                # --- SPEICHERN FÜR DOWNLOADS ---
-                import io
+                # Hauptkarte speichern
                 img_buf = io.BytesIO()
                 plt.savefig(img_buf, format='png', bbox_inches='tight')
                 img_buf.seek(0)
+                st.session_state.img_buf = img_buf
                 plt.close()
                 
+                # --- 2. PROGRESS BAR & MAPS GENERIERUNG (OPTIMIERT & NÄHER RAN GEZOOMT) ---
+                st.subheader("⏳ Generating individual player maps...")
+                progress_bar = st.progress(0.0)
+                status_text = st.empty()
+                
+                total_players = len(placed_players)
+                zip_buffer = io.BytesIO()
+                
+                with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
+                    for index, p in enumerate(placed_players):
+                        member = p["member"]
+                        m_name = member["name"].strip()
+                        mx, my = p["x"], p["y"]
+                        
+                        # Update progress bar & status text
+                        percent_complete = (index + 1) / total_players
+                        progress_bar.progress(percent_complete)
+                        status_text.text(f"Processing map {index + 1} of {total_players}: {m_name}")
+                        
+                        center_x = int(mx + min_game_x) + 1
+                        center_y = int(my + min_game_y) + 1
+                        
+                        # Plot für Einzelkarte aufbauen
+                        fig_p, ax_p = plt.subplots(figsize=(7, 7), dpi=90) # Kleinere Auflösung (90 DPI) für rasante Generierung
+                        ax_p.set_aspect('equal')
+                        ax_p.set_facecolor('#1e251c')
+                        fig_p.patch.set_facecolor('#121711')
+                        
+                        # NÄHER RAN GEZOOMT: Radius von 25 auf 14 reduziert für besseren Fokus
+                        radius = 14 
+                        ax_p.set_xlim(mx - radius, mx + radius + 2)
+                        ax_p.set_ylim(my - radius, my + radius + 2)
+                        
+                        ax_p.set_xticks(np.arange(mx - radius, mx + radius + 3, 5))
+                        ax_p.set_yticks(np.arange(my - radius, my + radius + 3, 5))
+                        ax_p.set_xticklabels([str(int(x + min_game_x)) for x in ax_p.get_xticks()], fontsize=8, color='white')
+                        ax_p.set_yticklabels([str(int(y + min_game_y)) for y in ax_p.get_yticks()], fontsize=8, color='white')
+                        ax_p.grid(True, color="#596157", linestyle=':', linewidth=0.5)
+                        
+                        # Objekte im engen Radius einzeichnen
+                        for obj in placed_objects:
+                            if (mx - radius - 10 < obj["x"] < mx + radius + 10) and (my - radius - 10 < obj["y"] < my + radius + 10):
+                                rect_obj = patches.Rectangle(
+                                    (obj["x"], obj["y"]), obj["w"], obj["h"], 
+                                    linewidth=1.2, edgecolor='#ffffff', 
+                                    facecolor=colors.get(obj["type"], "#4682b4"), alpha=0.85
+                                )
+                                ax_p.add_patch(rect_obj)
+                                
+                                font_sz_obj = 7 if obj["type"] in ["r4", "r3"] else 11
+                                ax_p.text(obj["x"] + obj["w"]/2, obj["y"] + obj["h"]/2, obj["name"], 
+                                          color="white", fontsize=font_sz_obj, fontweight='bold', ha='center', va='center', clip_on=True, wrap=True)
+
+                        # HIGHLIGHT 1: Grüner Kreis um die Basis
+                        circle = patches.Circle((mx + 1.5, my + 1.5), radius=2.8, linewidth=4, edgecolor='#00ff00', facecolor='none', zorder=10)
+                        ax_p.add_patch(circle)
+                        
+                        # HIGHLIGHT 2: Markante Koordinaten-Box im freien Raum (oben links fixiert)
+                        box_text = f"DEINE POSITION:\n{m_name}\n\nX: {center_x}\nY: {center_y}"
+                        ax_p.text(
+                            mx - radius + 1, my + radius - 1, box_text, 
+                            color='#00ff00', fontsize=11, fontweight='bold', va='top', ha='left',
+                            bbox=dict(facecolor='#121711', alpha=0.9, edgecolor='#00ff00', linewidth=2, pad=6),
+                            zorder=11
+                        )
+                        
+                        plt.title(f"Detail-Anfahrtsplan: {m_name}", fontsize=12, color='white', pad=10, weight='bold')
+                        
+                        player_img_buf = io.BytesIO()
+                        plt.savefig(player_img_buf, format='png', facecolor=fig_p.get_facecolor(), bbox_inches='tight')
+                        player_img_buf.seek(0)
+                        plt.close()
+                        
+                        safe_name = "".join([c for c in m_name if c.isalpha() or c.isdigit() or c==' ']).rstrip()
+                        zip_file.writestr(f"spieler_karten/{safe_name}_hive_pos.png", player_img_buf.getvalue())
+                
+                zip_buffer.seek(0)
+                st.session_state.zip_buffer = zip_buffer
+                
+                # Fortschritts-UI aufräumen
+                status_text.success("🎉 All individual maps generated successfully!")
+                progress_bar.empty()
+
+                # --- 3. TXT DATEI GENERIEREN ---
                 txt_content = "Allianz Hive Plan - Koordinaten & Basen\n=======================================\n\n"
                 for obj in placed_objects:
                     clean_info = obj["name"].replace('\n', ' |  ')
                     txt_content += f"[{obj['type'].upper()}] {clean_info}\n"
-                
-                st.subheader("💾 Ergebnisse herunterladen")
-                col_dl1, col_dl2 = st.columns(2)
-                with col_dl1:
-                    st.download_button(label="🗺️ Karte als PNG herunterladen", data=img_buf, file_name="hive_map.png", mime="image/png")
-                with col_dl2:
-                    st.download_button(label="📝 Koordinaten als TXT herunterladen", data=txt_content, file_name="allianz_koordinaten.txt", mime="text/plain")
+                st.session_state.txt_content = txt_content
 
             except Exception as e:
                 st.error(f"Fehler bei der Verarbeitung der JSON-Datei: {e}")
+
+# --- DOWNLOAD AREA (AUßERHALB DER BUTTON-BEDINGUNG) ---
+# Zeigt den Download-Bereich dauerhaft an, sobald die Daten im Session State existieren!
+if st.session_state.img_buf is not None:
+    st.markdown("---")
+    st.subheader("💾 Ergebnisse herunterladen")
+    col_dl1, col_dl2 = st.columns(2)
+    
+    with col_dl1:
+        st.download_button(
+            label="🗺️ Hauptkarte als PNG herunterladen", 
+            data=st.session_state.img_buf, 
+            file_name="hive_map.png", 
+            mime="image/png"
+        )
+        st.write("")
+        st.download_button(
+            label="📝 Koordinaten als TXT herunterladen", 
+            data=st.session_state.txt_content, 
+            file_name="allianz_koordinaten.txt", 
+            mime="text/plain"
+        )
+        
+    with col_dl2:
+        st.download_button(
+            label="📦 ALLE EINZELKARTEN HERUNTERLADEN (ZIP)", 
+            data=st.session_state.zip_buffer, 
+            file_name="alliance_individual_maps.zip", 
+            mime="application/zip"
+        )
