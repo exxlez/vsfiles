@@ -5,6 +5,7 @@ import matplotlib.patches as patches
 import json
 import io
 import zipfile
+import textwrap  # Import für den automatischen Zeilenumbruch
 
 # --- STREAMLIT UI SETUP ---
 st.set_page_config(page_title="Last War Hive Generator", layout="wide")
@@ -21,7 +22,7 @@ if "zip_buffer" not in st.session_state:
 if "txt_content" not in st.session_state:
     st.session_state.txt_content = None
 
-# --- REAKTIVE PARAMETER (OHNE FORM-DANKE) ---
+# --- REAKTIVE PARAMETER ---
 st.subheader("Set your Coordinate System")
 col_g4, col_g5 = st.columns(2)
 with col_g4:
@@ -110,7 +111,6 @@ if uploaded_file and strongholds_list:
         try:
             raw_members = json.load(uploaded_file)
             
-            # Orientierungspunkt festlegen
             if center_mode == "Marshall Guard":
                 hive_center_game_x, hive_center_game_y = guard_x, guard_y
             elif center_mode == "Stronghold #1" and len(strongholds_list) > 0:
@@ -118,7 +118,6 @@ if uploaded_file and strongholds_list:
             else:
                 hive_center_game_x, hive_center_game_y = custom_center_x, custom_center_y
 
-            # Dimensionen ermitteln
             all_input_x = [guard_x, guard_x + guard_size, hive_center_game_x]
             all_input_y = [guard_y, guard_y + guard_size, hive_center_game_y]
             
@@ -285,7 +284,6 @@ if uploaded_file and strongholds_list:
                                     break
 
             placed_objects = []
-            # Sichtbarkeitsprüfung über das neue plot_stronghold Flag
             for sh in strongholds_list:
                 if sh.get("plot_stronghold", True):
                     placed_objects.append({"name": sh["name"], "x": to_grid_x(sh["x"]), "y": to_grid_y(sh["y"]), "w": sh["size"], "h": sh["size"], "type": "stronghold"})
@@ -297,14 +295,19 @@ if uploaded_file and strongholds_list:
                 m = p["member"]
                 real_x, real_y = to_game_coords(mx, my)
                 center_x, center_y = real_x + 1, real_y + 1
+                
+                # NUTZE TEXTWRAP: Macht nach maximal 8 Zeichen pro Zeile einen automatischen Umbruch
+                wrapped_name = "\n".join(textwrap.wrap(m['name'], width=8))
+                
                 placed_objects.append({
-                    "name": f"{m['name']}\n{center_x}|{center_y}", "x": mx, "y": my, "w": base_size, "h": base_size, "type": m["rang"].lower(),
+                    "name": f"{wrapped_name}\n{center_x}|{center_y}", 
+                    "x": mx, "y": my, "w": base_size, "h": base_size, "type": m["rang"].lower(),
                     "real_center_x": center_x, "real_center_y": center_y
                 })
 
             colors = {"stronghold": "#b22222", "guard": "#ff8c00", "r4": "#1e90ff", "r3": "#2e8b57"}
 
-            # --- ALTES, ÜBERSICHTLICHES MATPLOTLIB DESIGN (LIVE-RENDERED) ---
+            # --- SAUBERER MATPLOTLIB LIVE-RENDER ---
             st.subheader("🗺️ Live-Übersichtskarte")
             
             all_x = [o["x"] for o in placed_objects] + [o["x"]+o["w"] for o in placed_objects]
@@ -331,13 +334,14 @@ if uploaded_file and strongholds_list:
             for obj in placed_objects:
                 rect = patches.Rectangle((obj["x"], obj["y"]), obj["w"], obj["h"], linewidth=1.2, edgecolor='#ffffff', facecolor=colors.get(obj["type"], "#4682b4"), alpha=0.9)
                 ax.add_patch(rect)
-                font_sz = 8 if obj["type"] in ["r4", "r3"] else 12
+                
+                # Dynamische Text-Größe basierend auf Objekttyp
+                font_sz = 7.5 if obj["type"] in ["r4", "r3"] else 12
                 ax.text(obj["x"] + obj["w"]/2, obj["y"] + obj["h"]/2, obj["name"], color="white", fontsize=font_sz, fontweight='bold', ha='center', va='center', clip_on=True, wrap=True)
 
-            plt.title("Allianz Hive Plan (Echtzeit-Vorschau)", fontsize=18, color='white', pad=20, weight='bold')
+            plt.title("Alliance Hive Plan (Echtzeit-Vorschau)", fontsize=18, color='white', pad=20, weight='bold')
             st.pyplot(fig)
 
-            # Puffer für Hauptkarte füllen
             main_map_buf = io.BytesIO()
             plt.savefig(main_map_buf, format='png', bbox_inches='tight')
             main_map_buf.seek(0)
@@ -376,13 +380,15 @@ if uploaded_file and strongholds_list:
                                 if (mx - radius - 10 < obj["x"] < mx + radius + 10) and (my - radius - 10 < obj["y"] < my + radius + 10):
                                     rect_obj = patches.Rectangle((obj["x"], obj["y"]), obj["w"], obj["h"], linewidth=1.2, edgecolor='#ffffff', facecolor=colors.get(obj["type"], "#4682b4"), alpha=0.85)
                                     ax_p.add_patch(rect_obj)
-                                    font_sz_obj = 7 if obj["type"] in ["r4", "r3"] else 11
+                                    font_sz_obj = 7.5 if obj["type"] in ["r4", "r3"] else 11
                                     ax_p.text(obj["x"] + obj["w"]/2, obj["y"] + obj["h"]/2, obj["name"], color="white", fontsize=font_sz_obj, fontweight='bold', ha='center', va='center', clip_on=True, wrap=True)
 
                             circle = patches.Circle((mx + 1.5, my + 1.5), radius=2.8, linewidth=4, edgecolor='#00ff00', facecolor='none', zorder=10)
                             ax_p.add_patch(circle)
                             
-                            box_text = f"DEINE POSITION:\n{m_name}\n\nX: {center_x}\nY: {center_y}"
+                            # Detailkarten-Box Textumbruch für Namen
+                            wrapped_detail_name = "\n".join(textwrap.wrap(m_name, width=12))
+                            box_text = f"DEINE POSITION:\n{wrapped_detail_name}\n\nX: {center_x}\nY: {center_y}"
                             ax_p.text(mx - radius + 1, my + radius - 1, box_text, color='#00ff00', fontsize=10, fontweight='bold', va='top', ha='left', bbox=dict(facecolor='#121711', alpha=0.9, edgecolor='#00ff00', linewidth=2, pad=5), zorder=11)
                             
                             plt.title(f"Detail-Anfahrtsplan: {m_name}", fontsize=11, color='white', weight='bold')
@@ -404,7 +410,7 @@ if uploaded_file and strongholds_list:
                     st.session_state.txt_content = txt_content
                     st.success("🎉 ZIP-Archiv erfolgreich im Speicher bereitgestellt!")
 
-            # Zeige Downloads an, sobald generiert
+            # Downloads einblenden sobald generiert
             if st.session_state.zip_buffer is not None:
                 col_dl1, col_dl2 = st.columns(2)
                 with col_dl1:
